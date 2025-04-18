@@ -1,130 +1,142 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#121212">
 
-    <LinearLayout
+    <!-- 🔼 Scrollable Content -->
+    <ScrollView
+        android:id="@+id/scrollContent"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:padding="24dp"
-        android:paddingTop="0dp">
+        android:layout_height="match_parent"
+        android:layout_above="@+id/buttonBar"
+        android:fillViewport="true">
 
-        <!-- 🖼 Full-width album art with centered Now Playing -->
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="260dp"
-            android:layout_marginBottom="32dp">
-
-            <ImageView
-                android:id="@+id/albumArt"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop"
-                android:contentDescription="Album Art" />
-
-            <TextView
-                android:id="@+id/trackInfo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:padding="16dp"
-                android:text="🎧 Now playing:"
-                android:textSize="20sp"
-                android:textColor="#FFFFFF"
-                android:background="#A0000000"
-                android:gravity="center"
-                android:textAlignment="center"
-                android:maxLines="5"
-                android:ellipsize="none"
-                android:minLines="2"
-                android:shadowColor="#000000"
-                android:shadowRadius="6"
-                android:shadowDx="0"
-                android:shadowDy="0" />
-        </FrameLayout>
-
-        <!-- 🎼 Original Song Info Block -->
-        <TextView
-            android:id="@+id/touhouInfo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text=""
-            android:textSize="20sp"
-            android:textColor="#A5C9FF"
-            android:textAlignment="center"
-            android:gravity="center"
-            android:lineSpacingExtra="4dp"
-            android:layout_marginTop="0dp"
-            android:layout_marginBottom="24dp" />
-
-        <!-- 👤 Character Theme Section -->
         <LinearLayout
-            android:id="@+id/characterThemeSection"
-            android:layout_width="wrap_content"
+            android:id="@+id/contentContainer"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="center"
-            android:layout_marginTop="0dp"
-            android:visibility="gone">
+            android:gravity="center_horizontal"
+            android:padding="48dp"
+            android:minHeight="800dp">
 
+            <!-- Album Art and Track Info -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="260dp"
+                android:layout_marginBottom="32dp">
+
+                <ImageView
+                    android:id="@+id/albumArt"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="Album Art" />
+
+                <TextView
+                    android:id="@+id/trackInfo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:padding="16dp"
+                    android:text="🎧 Now playing:"
+                    android:textSize="20sp"
+                    android:textColor="#FFFFFF"
+                    android:background="#A0000000"
+                    android:gravity="center"
+                    android:textAlignment="center"
+                    android:maxLines="5"
+                    android:minLines="2"
+                    android:shadowColor="#000000"
+                    android:shadowRadius="6"
+                    android:shadowDx="0"
+                    android:shadowDy="0" />
+            </FrameLayout>
+
+            <!-- Touhou Info -->
             <TextView
-                android:id="@+id/characterNameText"
+                android:id="@+id/touhouInfo"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#FFB6C1"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:text="🎭 Character Theme: ..."
+                android:minHeight="120dp"
+                android:text=""
+                android:textSize="20sp"
+                android:textColor="#A5C9FF"
+                android:textAlignment="center"
                 android:gravity="center"
-                android:layout_gravity="center" />
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="24dp" />
 
-            <ImageView
-                android:id="@+id/characterImage"
-                android:layout_width="96dp"
-                android:layout_height="96dp"
-                android:layout_marginTop="8dp"
-                android:contentDescription="Character Thumbnail" />
-        </LinearLayout>
-
-        <!-- 🔁 Refresh + Next Buttons Side-by-Side -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center"
-            android:layout_marginTop="64dp"
-            android:layout_marginBottom="24dp"
-            android:layout_gravity="center">
-
-            <ImageView
-                android:id="@+id/refreshIcon"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:src="@android:drawable/ic_popup_sync"
-                android:contentDescription="Refresh"
-                android:layout_marginEnd="32dp"
-                app:tint="#FFFFFF" />
-
-            <Button
-                android:id="@+id/nextSongButton"
+            <!-- Character Info -->
+            <LinearLayout
+                android:id="@+id/characterThemeSection"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Next Song" />
-        </LinearLayout>
+                android:minHeight="130dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginTop="0dp"
+                android:visibility="gone">
 
-        <!-- ⏳ Loading Spinner -->
-        <ProgressBar
-            android:id="@+id/touhouLoading"
+                <TextView
+                    android:id="@+id/characterNameText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#FFB6C1"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:layout_gravity="center" />
+
+                <ImageView
+                    android:id="@+id/characterImage"
+                    android:layout_width="96dp"
+                    android:layout_height="96dp"
+                    android:layout_marginTop="8dp"
+                    android:contentDescription="Character Thumbnail" />
+            </LinearLayout>
+
+            <!-- Optional: Spinner -->
+            <ProgressBar
+                android:id="@+id/touhouLoading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:layout_marginTop="16dp"
+                style="?android:attr/progressBarStyle"
+                android:indeterminate="true" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- 🔽 Fixed Button Bar -->
+    <LinearLayout
+        android:id="@+id/buttonBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center"
+        android:background="#121212">
+
+        <ImageView
+            android:id="@+id/refreshIcon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_popup_sync"
+            android:contentDescription="Refresh"
+            android:layout_marginEnd="32dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="#FFFFFF" />
+
+        <Button
+            android:id="@+id/nextSongButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:visibility="gone"
-            android:layout_marginTop="16dp"
-            style="?android:attr/progressBarStyle"
-            android:indeterminate="true" />
-
+            android:text="Next Song" />
     </LinearLayout>
-</ScrollView>
+</RelativeLayout>

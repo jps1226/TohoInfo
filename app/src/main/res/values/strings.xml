@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">TohoInfo</string>
+    <string name="spotify_fetch_failed">❌ Failed to fetch from Spotify.</string>
+    <string name="searching_touhoudb">🔄 Searching TouhouDB…</string>
+    <string name="no_arrangement_found">🔍 No matching Touhou arrangement found.</string>
+    <string name="character_theme_label">🎭 Character Theme: %1$s</string>
+    <string name="touhou_info_fetch_failed">❌ Failed to fetch Touhou info.</string>
+
+
 </resources>
