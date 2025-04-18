@@ -509,6 +509,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun scrapeOriginalSong(title: String) {
+        // Just do a simplified version of your scrapeTouhouDB that searches title exactly
+        // You can even reuse most of scrapeTouhouDB but skip all fallback trimming
+        scrapeTouhouDB(title)
+    }
 
     private fun fetchCurrentlyPlaying(token: String) {
         Thread {
@@ -532,13 +537,26 @@ class MainActivity : AppCompatActivity() {
                     val json = JSONObject(resp.body!!.string())
                     val item = json.getJSONObject("item")
                     val name = item.getString("name")
-                    val artist = item.getJSONArray("artists").getJSONObject(0).getString("name")
+                    val artistArray = item.getJSONArray("artists")
+
+                    val artistNames = mutableListOf<String>()
+                    for (i in 0 until artistArray.length()) {
+                        artistNames.add(artistArray.getJSONObject(i).getString("name"))
+                    }
+
+                    val isOriginalZUN = artistNames.any { it == "ZUN" || it.contains("上海アリス幻樂団") }
+
+                    val fullText = if (isOriginalZUN) {
+                        "🎧 Now playing (original):\n$name\nby ${artistNames.joinToString(", ")}"
+                    } else {
+                        "🎧 Now playing:\n$name\nby ${artistNames.firstOrNull().orEmpty()}"
+                    }
+
+                    updateUI(fullText)
 
                     val images = item.getJSONObject("album").getJSONArray("images")
                     val imageUrl = if (images.length() > 0) images.getJSONObject(0).getString("url") else null
 
-                    val fullText = "🎧 Now playing:\n$name\nby $artist"
-                    updateUI(fullText)
 
                     // Load album art if available
                     runOnUiThread {
@@ -560,7 +578,12 @@ class MainActivity : AppCompatActivity() {
                             albumArt.setImageResource(R.mipmap.ic_launcher)
                         }
                     }
-
+// ✅ If it's already an original, go get info directly
+                    if (isOriginalZUN) {
+                        scrapeOriginalSong(name)
+                    } else {
+                        scrapeTouhouDB(name)
+                    }
                     // Only send song name to TouhouDB
                     scrapeTouhouDB(name)
                 }
