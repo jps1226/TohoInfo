@@ -9,15 +9,15 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="center"
+        android:gravity="center_horizontal"
         android:padding="24dp"
-        android:paddingTop="48dp">
+        android:paddingTop="0dp">
 
-        <!-- 🖼 Album Art with Overlay Text -->
+        <!-- 🖼 Full-width album art with centered Now Playing -->
         <FrameLayout
-            android:layout_width="200dp"
-            android:layout_height="200dp"
-            android:layout_marginBottom="24dp">
+            android:layout_width="match_parent"
+            android:layout_height="260dp"
+            android:layout_marginBottom="32dp">
 
             <ImageView
                 android:id="@+id/albumArt"
@@ -30,29 +30,36 @@
                 android:id="@+id/trackInfo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
-                android:padding="8dp"
+                android:layout_gravity="center"
+                android:padding="16dp"
                 android:text="🎧 Now playing:"
-                android:textSize="14sp"
+                android:textSize="20sp"
                 android:textColor="#FFFFFF"
-                android:background="#80000000"
+                android:background="#A0000000"
                 android:gravity="center"
                 android:textAlignment="center"
-                android:maxLines="3"
-                android:ellipsize="end" />
+                android:maxLines="5"
+                android:ellipsize="none"
+                android:minLines="2"
+                android:shadowColor="#000000"
+                android:shadowRadius="6"
+                android:shadowDx="0"
+                android:shadowDy="0" />
         </FrameLayout>
 
-        <!-- 🎼 Touhou Info Block -->
+        <!-- 🎼 Original Song Info Block -->
         <TextView
             android:id="@+id/touhouInfo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text=""
-            android:textSize="18sp"
+            android:textSize="20sp"
             android:textColor="#A5C9FF"
-            android:layout_marginTop="8dp"
             android:textAlignment="center"
-            android:gravity="center" />
+            android:gravity="center"
+            android:lineSpacingExtra="4dp"
+            android:layout_marginTop="0dp"
+            android:layout_marginBottom="24dp" />
 
         <!-- 👤 Character Theme Section -->
         <LinearLayout
@@ -61,7 +68,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="0dp"
             android:visibility="gone">
 
             <TextView
