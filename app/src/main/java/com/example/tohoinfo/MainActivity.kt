@@ -361,14 +361,19 @@ class MainActivity : AppCompatActivity() {
                 }
 
 
+                val touhouTextView = findViewById<TextView>(R.id.touhouInfo)
+
                 for (i in 0 until names.length()) {
                     val obj = names.getJSONObject(i)
+                    val rawValue = obj.getString("value")
+
                     when (obj.getString("language")) {
-                        "Japanese" -> jp = formatTildeTitle(obj.getString("value"))
-                        "Romaji" -> romaji = formatTildeTitle(obj.getString("value"))
-                        "English" -> en = formatTildeTitle(obj.getString("value"))
+                        "Japanese" -> jp = smartBreakOnTilde(rawValue, touhouTextView)
+                        "Romaji" -> romaji = smartBreakOnTilde(rawValue, touhouTextView)
+                        "English" -> en = smartBreakOnTilde(rawValue, touhouTextView)
                     }
                 }
+
 
 
                 val spotifyLink = "https://open.spotify.com/search/" + Uri.encode(jp)
@@ -522,6 +527,19 @@ class MainActivity : AppCompatActivity() {
         scrapeTouhouDB(title)
     }
 
+    private fun smartBreakOnTilde(text: String, textView: TextView): String {
+        val paint = textView.paint
+        val availableWidth = textView.width - textView.paddingLeft - textView.paddingRight
+        val fullWidth = paint.measureText(text)
+
+        return if (fullWidth > availableWidth && text.contains("～")) {
+            text.replace(Regex("""\s*[～~]\s*"""), " ～\n")
+        } else {
+            text
+        }
+    }
+
+
     private fun fetchCurrentlyPlaying(token: String) {
         Thread {
             try {
@@ -541,8 +559,16 @@ class MainActivity : AppCompatActivity() {
                         return@use
                     }
 
-                    val json = JSONObject(resp.body!!.string())
+                    val body = resp.body?.string()
+                    if (body.isNullOrBlank() || !body.trim().startsWith("{")) {
+                        sendLogToWebhook("⚠️ Unexpected response from Spotify: $body", testingWebhookUrl)
+                        updateUI("Spotify returned invalid data.")
+                        return@use
+                    }
+
+                    val json = JSONObject(body)
                     val item = json.getJSONObject("item")
+
                     val name = item.getString("name")
                     val artistArray = item.getJSONArray("artists")
 
