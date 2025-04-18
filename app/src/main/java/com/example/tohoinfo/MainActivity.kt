@@ -359,11 +359,12 @@ class MainActivity : AppCompatActivity() {
                 for (i in 0 until names.length()) {
                     val obj = names.getJSONObject(i)
                     when (obj.getString("language")) {
-                        "Japanese" -> jp = obj.getString("value")
-                        "Romaji" -> romaji = obj.getString("value")
-                        "English" -> en = obj.getString("value")
+                        "Japanese" -> jp = formatTildeTitle(obj.getString("value"))
+                        "Romaji" -> romaji = formatTildeTitle(obj.getString("value"))
+                        "English" -> en = formatTildeTitle(obj.getString("value"))
                     }
                 }
+
 
                 val spotifyLink = "https://open.spotify.com/search/" + Uri.encode(jp)
                 val full = SpannableStringBuilder()
@@ -546,11 +547,13 @@ class MainActivity : AppCompatActivity() {
 
                     val isOriginalZUN = artistNames.any { it == "ZUN" || it.contains("上海アリス幻樂団") }
 
+                    val displayName = formatTildeTitle(name)
                     val fullText = if (isOriginalZUN) {
-                        "🎧 Now playing (original):\n$name\nby ${artistNames.joinToString(", ")}"
+                        "🎧 Now playing (original):\n$displayName\nby ${artistNames.joinToString(", ")}"
                     } else {
-                        "🎧 Now playing:\n$name\nby ${artistNames.firstOrNull().orEmpty()}"
+                        "🎧 Now playing:\n$displayName\nby ${artistNames.firstOrNull().orEmpty()}"
                     }
+
 
                     updateUI(fullText)
 
@@ -593,6 +596,9 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
+    private fun formatTildeTitle(text: String): String {
+        return text.replace(Regex("""\s*[～~]\s*"""), " ～\n")
+    }
 
 
     private fun updateUI(text: String) {
