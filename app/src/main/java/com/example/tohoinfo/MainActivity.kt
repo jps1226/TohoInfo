@@ -1,5 +1,6 @@
 package com.example.tohoinfo
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.text.SpannableString
@@ -19,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.graphics.Color
 import android.graphics.Typeface
 import android.widget.Button
+import android.widget.LinearLayout
 import androidx.core.text.HtmlCompat
 import com.spotify.sdk.android.auth.AuthorizationClient
 import com.spotify.sdk.android.auth.AuthorizationRequest
@@ -31,6 +33,7 @@ import okhttp3.RequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import org.jsoup.Jsoup
+import java.net.URL
 import java.net.URLEncoder
 
 
@@ -308,6 +311,41 @@ class MainActivity : AppCompatActivity() {
                     }
 
                 }
+// Check if the original song is a character theme
+                var characterName = ""
+                var characterThumbUrl = ""
+
+                try {
+                    val artistUrl = "https://touhoudb.com/api/songs/$originalId?fields=Artists"
+                    val artistResp = OkHttpClient().newCall(Request.Builder().url(artistUrl).build()).execute()
+                    val artistJson = JSONObject(artistResp.body?.string() ?: "")
+                    val artistArray = artistJson.optJSONArray("artists")
+
+                    for (i in 0 until (artistArray?.length() ?: 0)) {
+                        val artistEntry = artistArray?.getJSONObject(i)
+                        val category = artistEntry?.optString("categories")
+                        val artistObj = artistEntry?.optJSONObject("artist")
+                        val type = artistObj?.optString("artistType")
+
+                        if (category == "Subject" && type == "Character") {
+                            characterName = artistObj?.optString("additionalNames")?.split(",")?.firstOrNull {
+                                it.matches(Regex(".*[a-zA-Z].*"))
+                            } ?: artistEntry.optString("name")
+                            val charId = artistObj.optInt("id", -1)
+
+                            // Get thumbnail
+                            val thumbReq = Request.Builder().url("https://touhoudb.com/api/artists/$charId?fields=MainPicture").build()
+                            val thumbResp = OkHttpClient().newCall(thumbReq).execute()
+                            val thumbJson = JSONObject(thumbResp.body?.string() ?: "")
+                            characterThumbUrl = thumbJson.optJSONObject("mainPicture")
+                                ?.optString("urlSmallThumb", "") ?: ""
+
+                            break
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("CharacterTheme", "Failed to fetch character info", e)
+                }
 
 
                 for (i in 0 until names.length()) {
@@ -350,6 +388,41 @@ class MainActivity : AppCompatActivity() {
                     fromSpan.setSpan(RelativeSizeSpan(0.9f), 0, fromSpan.length, 0)
                     full.append(fromSpan)
                 }
+
+                val characterLayout = findViewById<LinearLayout>(R.id.characterThemeSection)
+                val charNameView = findViewById<TextView>(R.id.characterNameText)
+                val charImageView = findViewById<ImageView>(R.id.characterImage)
+
+                if (characterName.isNotBlank()) {
+                    runOnUiThread {
+                        charNameView.text = "🎭 Character Theme: $characterName"
+                        characterLayout.visibility = View.VISIBLE
+                    }
+
+                    if (characterThumbUrl.isNotBlank()) {
+                        Thread {
+                            try {
+                                val imgStream = URL(characterThumbUrl).openStream()
+                                val bmp = BitmapFactory.decodeStream(imgStream)
+                                runOnUiThread {
+                                    charImageView.setImageBitmap(bmp)
+                                }
+                            } catch (e: Exception) {
+                                Log.e("CharacterImage", "Failed to load character thumbnail", e)
+                            }
+                        }.start()
+                    } else {
+                        runOnUiThread {
+                            charImageView.setImageDrawable(null) // or placeholder
+                        }
+                    }
+                } else {
+                    runOnUiThread {
+                        characterLayout.visibility = View.GONE
+                    }
+                }
+
+
 
 // Spotify link
                 val linkText = "🔗 Search on Spotify"
@@ -409,7 +482,6 @@ class MainActivity : AppCompatActivity() {
     private fun setupRefreshButton() {
         val refreshIcons = listOf(
             findViewById<ImageView>(R.id.refreshIcon),
-            findViewById<ImageView>(R.id.refreshIconTop)
         )
 
         for (icon in refreshIcons) {

@@ -1,82 +1,100 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#121212"
-    android:gravity="center"
-    android:padding="24dp">
+    android:background="#121212">
 
-    <ImageView
-        android:id="@+id/albumArt"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:layout_marginBottom="24dp"
-        android:src="@mipmap/ic_launcher" />
-
-    <TextView
-        android:id="@+id/trackInfo"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="🎵 Waiting for your song..."
-        android:textSize="22sp"
-        android:textColor="#FFFFFF"
-        android:textAlignment="center"
+        android:orientation="vertical"
         android:gravity="center"
-        android:lineSpacingExtra="8dp" />
+        android:padding="48dp">
 
-    <TextView
-        android:id="@+id/touhouInfo"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="18sp"
-        android:textColor="#A5C9FF"
-        android:layout_marginTop="24dp"
-        android:textAlignment="center"
-        android:gravity="center" />
+        <ImageView
+            android:id="@+id/albumArt"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_marginBottom="24dp"
+            android:src="@mipmap/ic_launcher" />
 
-    <ImageView
-        android:id="@+id/refreshIconTop"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/ic_refresh"
-        android:contentDescription="Refresh"
-        android:layout_marginTop="16dp"
-        android:layout_gravity="center" />
+        <TextView
+            android:id="@+id/trackInfo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🎵 Waiting for your song..."
+            android:textSize="22sp"
+            android:textColor="#FFFFFF"
+            android:textAlignment="center"
+            android:gravity="center"
+            android:lineSpacingExtra="8dp" />
 
-    <ImageView
-        android:id="@+id/refreshIcon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginTop="24dp"
-        android:src="@android:drawable/ic_popup_sync"
-        android:contentDescription="Refresh"
-        android:layout_gravity="center"
-        app:tint="#FFFFFF" />
+        <TextView
+            android:id="@+id/touhouInfo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="18sp"
+            android:textColor="#A5C9FF"
+            android:layout_marginTop="24dp"
+            android:textAlignment="center"
+            android:gravity="center" />
+
+        <!-- ✨ Character Theme Section -->
+        <LinearLayout
+            android:id="@+id/characterThemeSection"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginTop="24dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/characterNameText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFB6C1"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:text="🎭 Character Theme: ..."
+                android:gravity="center"
+                android:layout_gravity="center" />
+
+            <ImageView
+                android:id="@+id/characterImage"
+                android:layout_width="96dp"
+                android:layout_height="96dp"
+                android:layout_marginTop="8dp"
+                android:contentDescription="Character Thumbnail" />
+        </LinearLayout>
 
 
-    <ProgressBar
-        android:id="@+id/touhouLoading"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:layout_marginTop="16dp"
-        style="?android:attr/progressBarStyle"
-        android:indeterminate="true" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="64dp"
+            android:layout_marginBottom="24dp"
+            android:layout_gravity="center">
 
-    <Button
-        android:id="@+id/nextSongButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Next Song"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="24dp" />
+            <ImageView
+                android:id="@+id/refreshIcon"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@android:drawable/ic_popup_sync"
+                android:contentDescription="Refresh"
+                android:layout_marginEnd="32dp"
+                app:tint="#FFFFFF" />
 
+            <Button
+                android:id="@+id/nextSongButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Next Song" />
+        </LinearLayout>
 
-
-
-
-
-</LinearLayout>
+    </LinearLayout>
+</ScrollView>
