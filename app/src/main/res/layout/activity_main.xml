@@ -12,23 +12,32 @@
         android:gravity="center"
         android:padding="48dp">
 
-        <ImageView
-            android:id="@+id/albumArt"
-            android:layout_width="200dp"
-            android:layout_height="200dp"
-            android:layout_marginBottom="24dp"
-            android:src="@mipmap/ic_launcher" />
-
-        <TextView
-            android:id="@+id/trackInfo"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🎵 Waiting for your song..."
-            android:textSize="22sp"
-            android:textColor="#FFFFFF"
-            android:textAlignment="center"
-            android:gravity="center"
-            android:lineSpacingExtra="8dp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="24dp">
+
+            <ImageView
+                android:id="@+id/albumArt"
+                android:layout_width="160dp"
+                android:layout_height="160dp"
+                android:layout_marginEnd="16dp"
+                android:src="@mipmap/ic_launcher" />
+
+            <TextView
+                android:id="@+id/trackInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🎵 Waiting for your song..."
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:textAlignment="viewStart"
+                android:gravity="center_vertical"
+                android:lineSpacingExtra="8dp" />
+        </LinearLayout>
+
 
         <TextView
             android:id="@+id/touhouInfo"
