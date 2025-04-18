@@ -169,8 +169,14 @@ class MainActivity : AppCompatActivity() {
                 val noBrackets = originalQuery.replace("""[\(\[\（\【].*?[\)\]\）\】]""".toRegex(), "").trim()
                 if (noBrackets != originalQuery) fallbackQueries.add(noBrackets)
 
-                val noFeat = noBrackets.replace("""(feat\.|with)\s.+""".toRegex(RegexOption.IGNORE_CASE), "").trim()
-                if (noFeat != noBrackets) fallbackQueries.add(noFeat)
+                val featRegex = """(?i)\s*(feat\.|with)\s.+$""".toRegex()
+                val noFeat = originalQuery.replace(featRegex, "").trim()
+                if (noFeat != originalQuery) fallbackQueries.add(noFeat)
+
+// Also run feat-removal on already cleaned variants
+                val noBracketsFeat = noBrackets.replace(featRegex, "").trim()
+                if (noBracketsFeat != noBrackets && !fallbackQueries.contains(noBracketsFeat)) fallbackQueries.add(noBracketsFeat)
+
 
                 val noVersionSuffix = noFeat.replace("""[-–]\s*(Short|Full)?\s*Ver\.?""".toRegex(RegexOption.IGNORE_CASE), "").trim()
                 if (noVersionSuffix != noFeat) fallbackQueries.add(noVersionSuffix)
@@ -184,6 +190,8 @@ class MainActivity : AppCompatActivity() {
 
                 for (query in fallbackQueries) {
                     val encodedQuery = Uri.encode(query)
+                    Log.d("TouhouDB", "Trying query variant: $query")
+
                     val searchUrl = "https://touhoudb.com/api/songs?query=$encodedQuery&start=0&maxResults=10&getTotalCount=true"
                     lastSearchUrl = searchUrl
 
@@ -374,13 +382,20 @@ class MainActivity : AppCompatActivity() {
                 romajiSpan.setSpan(ForegroundColorSpan(Color.parseColor("#CCCCCC")), 0, romaji.length, 0)
                 full.append(romajiSpan)
 
-// English
-                val enSpan = SpannableString("$en\n\n")
+// English title
+                val enSpan = SpannableString("$en\n")
                 enSpan.setSpan(StyleSpan(Typeface.NORMAL), 0, en.length, 0)
                 enSpan.setSpan(RelativeSizeSpan(1.0f), 0, en.length, 0)
                 full.append(enSpan)
 
-// Source game
+// 🔗 Spotify link — right after song name
+                val linkText = "🔗 Search on Spotify\n\n"
+                val linkSpan = SpannableString(linkText)
+                linkSpan.setSpan(URLSpan(spotifyLink), 0, linkText.length, 0)
+                linkSpan.setSpan(ForegroundColorSpan(Color.parseColor("#88C0D0")), 0, linkText.length, 0)
+                full.append(linkSpan)
+
+// 🎮 Game
                 if (gameTitle.isNotBlank()) {
                     val fromSpan = SpannableString("🎮 From: $gameTitle\n\n")
                     fromSpan.setSpan(StyleSpan(Typeface.BOLD), 0, fromSpan.length, 0)
@@ -388,6 +403,9 @@ class MainActivity : AppCompatActivity() {
                     fromSpan.setSpan(RelativeSizeSpan(0.9f), 0, fromSpan.length, 0)
                     full.append(fromSpan)
                 }
+
+// 🎭 Character name will come after this as usual
+
 
                 val characterLayout = findViewById<LinearLayout>(R.id.characterThemeSection)
                 val charNameView = findViewById<TextView>(R.id.characterNameText)
@@ -424,12 +442,7 @@ class MainActivity : AppCompatActivity() {
 
 
 
-// Spotify link
-                val linkText = "🔗 Search on Spotify"
-                val linkSpan = SpannableString(linkText)
-                linkSpan.setSpan(URLSpan(spotifyLink), 0, linkText.length, 0)
-                linkSpan.setSpan(ForegroundColorSpan(Color.parseColor("#88C0D0")), 0, linkText.length, 0)
-                full.append(linkSpan)
+
 
 
 
