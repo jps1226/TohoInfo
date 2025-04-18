@@ -598,6 +598,10 @@ class MainActivity : AppCompatActivity() {
     private fun updateUI(text: String) {
         runOnUiThread {
             findViewById<TextView>(R.id.trackInfo).text = text
+            val trackInfo = findViewById<TextView>(R.id.trackInfo)
+            trackInfo.setShadowLayer(6f, 0f, 0f, Color.BLACK)
+
+
         }
     }
 
