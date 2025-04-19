@@ -29,6 +29,23 @@ jobs:
       - name: Build APK
         run: ./gradlew assembleDebug
 
+- name: Create GitHub Release
+  uses: softprops/action-gh-release@v1
+  with:
+    name: "TohoInfo Build ${{ github.run_number }}"
+    tag_name: "build-${{ github.run_number }}"
+    body: "Automatic debug APK build from commit `${{ github.sha }}`"
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+- name: Upload APK to Release
+  uses: softprops/action-gh-release@v1
+  with:
+    files: app/build/outputs/apk/debug/app-debug.apk
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
