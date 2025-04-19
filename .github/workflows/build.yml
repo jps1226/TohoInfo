@@ -1,9 +1,9 @@
-name: Build APK
+name: Build APK on Push
 
 on:
   push:
     branches:
-      - main  # or 'master', depending on your branch name
+      - main  # or 'master' or whichever branch you want to watch
 
 jobs:
   build:
@@ -11,23 +11,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: '17'
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
+      - name: Set up Gradle
+        uses: gradle/gradle-build-action@v2
 
       - name: Build APK
         run: ./gradlew assembleDebug
 
-      - name: Upload APK artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: TohoInfo-APK
+          name: TohoInfo-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk

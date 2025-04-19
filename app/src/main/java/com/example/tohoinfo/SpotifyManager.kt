@@ -22,7 +22,9 @@ object SpotifyManager {
     private const val REQUEST_CODE = 1337
 
     private var accessToken: String? = null
-    private var currentSpotifyAlbumName: String? = null
+    var currentSpotifyAlbumName: String? = null
+    var currentSpotifyAlbumYear: Int? = null
+
 
     fun login(activity: Activity) {
         val request = AuthorizationRequest.Builder(
@@ -88,6 +90,9 @@ object SpotifyManager {
                     val album = item.getJSONObject("album")
                     val images = album.getJSONArray("images")
                     currentSpotifyAlbumName = album.getString("name")
+                    val releaseDate = album.optString("release_date")  // format: "2017-12-30"
+                    currentSpotifyAlbumYear = releaseDate.take(4).toIntOrNull()
+
 
                     val imageUrl = if (images.length() > 0) images.getJSONObject(0).getString("url") else null
 
@@ -129,11 +134,11 @@ object SpotifyManager {
 
                     if (isOriginalZUN) {
                         UIUpdater.hideCharacterSection(activity)
-                        TouhouDBManager.scrape(activity, name)
+                        TouhouDBManager.scrape(activity, name, currentSpotifyAlbumYear)
 
                     } else {
                         UIUpdater.hideCharacterSection(activity)
-                        TouhouDBManager.scrape(activity, name)
+                        TouhouDBManager.scrape(activity, name, currentSpotifyAlbumYear)
                     }
                 }
             } catch (e: Exception) {

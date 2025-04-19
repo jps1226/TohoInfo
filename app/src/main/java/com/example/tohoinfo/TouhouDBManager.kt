@@ -28,8 +28,196 @@ import androidx.core.graphics.toColorInt
 object TouhouDBManager {
 
     @SuppressLint("CutPasteId")
-    fun scrape(context: Context, query: String) {
+    private fun tryAlbumDisambiguation(albumName: String?, spotifyTitle: String, spotifyYear: Int?): Int {
+        if (albumName.isNullOrBlank()) return -1
+        return try {
+            val client = OkHttpClient()
+            val albumNameVariants = buildAlbumNameVariants(albumName)
+            val allAlbumItems = mutableListOf<JSONObject>()
+
+            for (variant in albumNameVariants) {
+                val encoded = Uri.encode(variant)
+                val searchUrl = "https://touhoudb.com/api/albums?query=$encoded&start=0&maxResults=10&deleted=false&nameMatchMode=Auto&fields=Tracks"
+                Log.d("TouhouDB", "🔎 Searching album variant: \"$variant\" → $searchUrl")
+
+                val resp = client.newCall(Request.Builder().url(searchUrl).build()).execute()
+                val body = resp.body?.string() ?: continue
+                val json = JSONObject(body)
+                val items = json.optJSONArray("items") ?: continue
+
+                Log.d("TouhouDB", "🔍 Found ${items.length()} album(s) for variant \"$variant\":")
+
+                for (i in 0 until items.length()) {
+                    val album = items.getJSONObject(i)
+                    val name = album.optString("name")
+                    val year = album.optJSONObject("releaseDate")?.optInt("year", -1)
+                    Log.d("TouhouDB", "  • \"$name\" — Year: $year")
+                    allAlbumItems.add(album)
+                }
+            }
+
+
+
+            if (allAlbumItems.isEmpty()) {
+                Log.d("TouhouDB", "❌ No albums returned after variant search.")
+                return -1
+            }
+
+            Log.d("TouhouDB", "🧾 Spotify Album: \"$albumName\" — Release Year: $spotifyYear")
+
+            val scoredAlbums = allAlbumItems.map { album ->
+                val name = album.optString("name")
+                val year = album.optJSONObject("releaseDate")?.optInt("year", -1)
+                val nameScore = nameSimilarity(name, albumName)
+                val yearScore = if (spotifyYear != null && year == spotifyYear) 100 else 0
+                val totalScore = nameScore + yearScore
+
+                Log.d("TouhouDB", "🗂️ Album \"$name\" — Year: $year — Score: $totalScore")
+                album to totalScore
+            }.sortedByDescending { it.second }
+
+            val topAlbum = scoredAlbums.firstOrNull()?.first ?: run {
+                Log.d("TouhouDB", "❌ No suitable album match found")
+                return -1
+            }
+
+            val albumId = topAlbum.optInt("id", -1)
+            if (albumId == -1) return -1
+
+            val tracks = topAlbum.optJSONArray("tracks") ?: return -1
+
+
+            val fallbackVariants = buildTitleVariants(spotifyTitle)
+            Log.d("TouhouDB", "🎯 Track matching against ${fallbackVariants.size} title variants:")
+            for (v in fallbackVariants) {
+                Log.d("TouhouDB", "    • \"$v\"")
+            }
+
+            for (i in 0 until tracks.length()) {
+                val track = tracks.getJSONObject(i)
+                val trackName = track.optString("name").trim()
+                Log.d("TouhouDB", "🔎 Checking track: \"$trackName\"")
+
+
+                for (variant in fallbackVariants) {
+                    if (trackName == variant) {
+                        Log.d("TouhouDB", "🎵 Track matched in album: \"$trackName\" (matched variant: \"$variant\")")
+
+                        return track.getJSONObject("song").optInt("originalVersionId", -1)
+                    }
+
+                }
+            }
+
+            Log.d("TouhouDB", "❌ No matching track found in album using variants.")
+            -1
+        } catch (e: Exception) {
+            Log.e("TouhouDB", "Album disambiguation failed", e)
+            -1
+        }
+    }
+
+
+    private fun buildAlbumNameVariants(original: String): List<String> {
+        val base = original.trim()
+        val variants = mutableSetOf(base)
+
+        // Remove dashes and suffixes like -KURENAI-, -Re, etc
+        val dashTrimmed = base.replace(Regex("[-ー−‐―].*?$"), "").trim()
+        variants.add(dashTrimmed)
+
+        // Remove bracketed suffixes
+        val bracketTrimmed = base.replace("""[(（【\[].*?[)）】\]]""".toRegex(), "").trim()
+        variants.add(bracketTrimmed)
+
+        // Generate smart alternates (e.g., add " Re", replace KURENAI with Re, etc.)
+        if (base.contains("KURENAI", ignoreCase = true)) {
+            variants.add(base.replace(Regex("KURENAI.*", RegexOption.IGNORE_CASE), "Re"))
+            variants.add(base.replace(Regex("[-ー−‐―]KURENAI.*", RegexOption.IGNORE_CASE), " Re"))
+            variants.add(base.replace("KURENAI", "Re", ignoreCase = true))
+        }
+
+        if (dashTrimmed.isNotEmpty()) {
+            variants.add("$dashTrimmed Re")
+            variants.add("$dashTrimmed -Re")
+        }
+
+        return variants.filter { it.isNotBlank() }.distinct()
+    }
+
+    private fun nameSimilarity(a: String, b: String): Int {
+        val tokensA = a.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), " ").split(" ").filter { it.isNotBlank() }
+        val tokensB = b.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), " ").split(" ").filter { it.isNotBlank() }
+        return tokensA.count { tokensB.contains(it) }
+    }
+
+
+
+    private fun buildTitleVariants(original: String): List<String> {
+        val variants = mutableSetOf<String>()
+
+        val trimmed = original.trim()
+        variants.add(trimmed)
+
+        // Normalize full-width tilde to ASCII tilde
+        val normalizedTilde = trimmed.replace("～", "~")
+
+        // Strip everything after tilde
+        val noTilde = normalizedTilde.substringBefore("~").trim()
+        if (noTilde != trimmed) variants.add(noTilde)
+
+        // Normalize dash types
+        val dashNormalized = normalizedTilde
+            .replace("－", "-")
+            .replace("ー", "-")
+            .replace("−", "-")
+            .replace("―", "-")
+            .replace("‐", "-")
+
+// Add variant that strips everything after the first dash
+        val noDash = dashNormalized.substringBefore("-").trim()
+        if (noDash.isNotBlank()) variants.add(noDash)
+
+
+        // Remove bracketed phrases like （東方紅魔郷）
+        val noBrackets = trimmed.replace("""[(\[（【].*?[)\]）】]""".toRegex(), "").trim()
+        variants.add(noBrackets)
+
+        // Combine: bracket-removed + tilde-stripped
+        val bracketTildeNormalized = noBrackets.replace("～", "~")
+        val combined = bracketTildeNormalized.substringBefore("~").trim()
+        if (combined.isNotBlank()) variants.add(combined)
+
+        // Remove remix-style suffixes
+        val styleStripped = combined.replace(
+            Regex("(?i)(violin rock|piano jazz|hardcore|vocal|arrange|ver\\.?|mix|remix).*"),
+            ""
+        ).trim()
+        if (styleStripped.isNotBlank()) variants.add(styleStripped)
+
+        // Remove feat/with suffixes
+        val noFeat = styleStripped.replace("""(?i)\s*(feat\.|with)\s.+$""".toRegex(), "").trim()
+        if (noFeat != styleStripped) variants.add(noFeat)
+
+        return variants.filter { it.isNotBlank() }.distinct()
+    }
+
+
+
+
+    fun scrape(context: Context, query: String, spotifyYear: Int? = null)
+    {
         val ui = (context as MainActivity)
+        val spotifyYear = try {
+            SpotifyManager.currentSpotifyAlbumName?.let { albumName ->
+                // This assumes you parse year from a reliable spot
+                val field = SpotifyManager::class.java.getDeclaredField("currentSpotifyAlbumYear")
+                field.isAccessible = true
+                field.get(SpotifyManager)?.toString()?.toIntOrNull()
+            }
+        } catch (e: Exception) {
+            null
+        }
 
         val touhouText = ui.findViewById<TextView>(R.id.touhouInfo)
         ui.runOnUiThread {
@@ -91,6 +279,21 @@ object TouhouDBManager {
 
                         if (originalId != -1) break // Found a match, stop iterating
                     }
+
+                    if (originalId == -1) {
+                        Log.d("TouhouDB", "🔍 No match found in fallback queries. Attempting album disambiguation...")
+                        val albumName = SpotifyManager.currentSpotifyAlbumName
+                        Log.d("TouhouDB", "🎼 Album from Spotify: $albumName")
+
+                        val albumFallbackId = tryAlbumDisambiguation(albumName, query, spotifyYear)
+                        if (albumFallbackId != -1) {
+                            Log.d("TouhouDB", "✅ Match found via album disambiguation. Song ID: $albumFallbackId")
+                            originalId = albumFallbackId
+                        } else {
+                            Log.d("TouhouDB", "❌ Album disambiguation failed to find a matching track.")
+                        }
+                    }
+
 
                     if (originalId == -1) {
                         Log.d("TouhouDB", "❌ No matching arrangement found. Query: $query")
