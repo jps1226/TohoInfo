@@ -202,9 +202,6 @@ object TouhouDBManager {
         return variants.filter { it.isNotBlank() }.distinct()
     }
 
-
-
-
     fun scrape(context: Context, query: String, spotifyYear: Int? = null)
     {
         val ui = (context as MainActivity)
