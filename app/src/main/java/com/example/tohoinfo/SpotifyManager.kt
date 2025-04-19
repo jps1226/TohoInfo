@@ -23,7 +23,7 @@ object SpotifyManager {
 
     private var accessToken: String? = null
     var currentSpotifyAlbumName: String? = null
-    var currentSpotifyAlbumYear: Int? = null
+    private var currentSpotifyAlbumYear: Int? = null
 
 
     fun login(activity: Activity) {
