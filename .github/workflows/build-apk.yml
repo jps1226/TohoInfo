@@ -3,7 +3,7 @@ name: Build APK on Push
 on:
   push:
     branches:
-      - main  # or 'master' or whichever branch you want to watch
+      - master  
 
 jobs:
   build:
