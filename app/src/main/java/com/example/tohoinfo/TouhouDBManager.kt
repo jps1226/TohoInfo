@@ -1,6 +1,7 @@
 package com.example.tohoinfo
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.graphics.Typeface
@@ -24,6 +25,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.net.URL
 import androidx.core.graphics.toColorInt
+import androidx.core.text.HtmlCompat
 
 object TouhouDBManager {
 
@@ -218,7 +220,11 @@ object TouhouDBManager {
 
         val touhouText = ui.findViewById<TextView>(R.id.touhouInfo)
         ui.runOnUiThread {
-            touhouText.text = ui.getString(R.string.searching_touhoudb)
+            UIUpdater.setOriginalSongTitles(touhouText, "", "", "")
+            ui.findViewById<TextView>(R.id.touhouSpotifyLink).visibility = View.GONE
+            ui.findViewById<TextView>(R.id.touhouGameTitle).visibility = View.GONE
+            ui.findViewById<View>(R.id.characterThemeSection).visibility = View.GONE
+            ui.findViewById<ImageView>(R.id.characterImage).setImageDrawable(null)
             touhouText.visibility = View.VISIBLE
         }
 
@@ -294,7 +300,9 @@ object TouhouDBManager {
 
                     if (originalId == -1) {
                         Log.d("TouhouDB", "❌ No matching arrangement found. Query: $query")
-
+                        (context as Activity).runOnUiThread {
+                            UIUpdater.showNoArrangementFound(touhouText)
+                        }
                         // Send log to Discord
                         try {
                             val escapedQuery = query.replace("`", "'").replace("\"", "\\\"")
@@ -302,6 +310,7 @@ object TouhouDBManager {
                                 put("username", "TohoInfo App")
                                 put("content", "⚠️ **No matching arrangement found**\n**Query:** `$escapedQuery`\n**Search URL:** $lastSearchUrl")
                             }
+
 
                             val requestBody = logJson.toString()
                                 .toRequestBody("application/json".toMediaTypeOrNull())
@@ -318,9 +327,20 @@ object TouhouDBManager {
                             Log.e("TouhouDB", "🚨 Failed to send webhook", ex)
                         }
 
-                        (context).runOnUiThread {
-                            touhouText.text = ui.getString(R.string.no_arrangement_found)
+                        (context as Activity).runOnUiThread {
+                            UIUpdater.showNoArrangementFound(touhouText)
+
+                            val spotify = ui.findViewById<TextView>(R.id.touhouSpotifyLink)
+                            val game = ui.findViewById<TextView>(R.id.touhouGameTitle)
+                            val charSection = ui.findViewById<View>(R.id.characterThemeSection)
+                            val charImage = ui.findViewById<ImageView>(R.id.characterImage)
+
+                            spotify.visibility = View.GONE
+                            game.visibility = View.GONE
+                            charSection.visibility = View.GONE
+                            charImage.setImageDrawable(null)
                         }
+
                         return@Thread
                     }
 
@@ -438,52 +458,38 @@ object TouhouDBManager {
                         val rawValue = obj.getString("value")
 
                         when (obj.getString("language")) {
-                            "Japanese" -> jp = UIUpdater.smartBreakOnTilde(rawValue, touhouTextView)
-                            "Romaji" -> romaji = UIUpdater.smartBreakOnTilde(rawValue, touhouTextView)
-                            "English" -> en = UIUpdater.smartBreakOnTilde(rawValue, touhouTextView)
+                            "Japanese" -> jp = rawValue
+                            "Romaji" -> romaji = rawValue
+                            "English" -> en = rawValue
                         }
                     }
 
 
 
+
                     val spotifyLink = "https://open.spotify.com/search/" + Uri.encode(jp)
-                    val full = SpannableStringBuilder()
-
-// JP title
-                    val jpSpan = SpannableString("$jp\n")
-                    jpSpan.setSpan(ForegroundColorSpan("#A5C9FF".toColorInt()), 0, jp.length, 0)
-                    jpSpan.setSpan(StyleSpan(Typeface.BOLD), 0, jp.length, 0)
-                    jpSpan.setSpan(RelativeSizeSpan(1.2f), 0, jp.length, 0)
-                    full.append(jpSpan)
-
-// Romaji
-                    val romajiSpan = SpannableString("$romaji\n")
-                    romajiSpan.setSpan(StyleSpan(Typeface.ITALIC), 0, romaji.length, 0)
-                    romajiSpan.setSpan(RelativeSizeSpan(0.85f), 0, romaji.length, 0)
-                    romajiSpan.setSpan(ForegroundColorSpan("#CCCCCC".toColorInt()), 0, romaji.length, 0)
-                    full.append(romajiSpan)
-
-// English title
-                    val enSpan = SpannableString("$en\n")
-                    enSpan.setSpan(StyleSpan(Typeface.NORMAL), 0, en.length, 0)
-                    enSpan.setSpan(RelativeSizeSpan(1.0f), 0, en.length, 0)
-                    full.append(enSpan)
-
-// 🔗 Spotify link — right after song name
-                    val linkText = "🔗 Search on Spotify\n\n"
-                    val linkSpan = SpannableString(linkText)
-                    linkSpan.setSpan(URLSpan(spotifyLink), 0, linkText.length, 0)
-                    linkSpan.setSpan(ForegroundColorSpan("#88C0D0".toColorInt()), 0, linkText.length, 0)
-                    full.append(linkSpan)
-
-// 🎮 Game
-                    if (gameTitle.isNotBlank()) {
-                        val fromSpan = SpannableString("🎮 From: $gameTitle\n\n")
-                        fromSpan.setSpan(StyleSpan(Typeface.BOLD), 0, fromSpan.length, 0)
-                        fromSpan.setSpan(ForegroundColorSpan("#AAAAAA".toColorInt()), 0, fromSpan.length, 0)
-                        fromSpan.setSpan(RelativeSizeSpan(0.9f), 0, fromSpan.length, 0)
-                        full.append(fromSpan)
+                    (context as Activity).runOnUiThread {
+                        UIUpdater.setOriginalSongTitles(touhouTextView, jp, romaji, en)
                     }
+
+                    ui.runOnUiThread {
+                        // 🔗 Spotify link
+                        val spotifyView = ui.findViewById<TextView>(R.id.touhouSpotifyLink)
+                        spotifyView.text = HtmlCompat.fromHtml("<a href=\"$spotifyLink\">🔗 Search on Spotify</a>", HtmlCompat.FROM_HTML_MODE_COMPACT)
+                        spotifyView.movementMethod = LinkMovementMethod.getInstance()
+                        spotifyView.movementMethod = LinkMovementMethod.getInstance()
+                        spotifyView.visibility = View.VISIBLE
+
+                        // 🎮 Game title
+                        val gameView = ui.findViewById<TextView>(R.id.touhouGameTitle)
+                        if (gameTitle.isNotBlank()) {
+                            gameView.text = "🎮 From: $gameTitle"
+                            gameView.visibility = View.VISIBLE
+                        } else {
+                            gameView.visibility = View.GONE
+                        }
+                    }
+
 
 // 🎭 Character name will come after this as usual
 
@@ -528,7 +534,6 @@ object TouhouDBManager {
 
 
                     ui.runOnUiThread {
-                        touhouText.text = full
                         touhouText.movementMethod = LinkMovementMethod.getInstance()
                     }
 

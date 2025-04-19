@@ -58,9 +58,10 @@
             <!-- Touhou Info -->
             <TextView
                 android:id="@+id/touhouInfo"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minHeight="120dp"
+                android:minHeight="60dp"
+                android:visibility="visible"
                 android:text=""
                 android:textSize="20sp"
                 android:textColor="#A5C9FF"
@@ -68,6 +69,27 @@
                 android:gravity="center"
                 android:lineSpacingExtra="4dp"
                 android:layout_marginBottom="24dp" />
+
+            <TextView
+                android:id="@+id/touhouSpotifyLink"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="#88C0D0"
+                android:textAlignment="center"
+                android:gravity="center"
+                android:autoLink="web"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/touhouGameTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="#AAAAAA"
+                android:textAlignment="center"
+                android:gravity="center"
+                android:layout_marginBottom="16dp" />
 
             <!-- Character Info -->
             <LinearLayout

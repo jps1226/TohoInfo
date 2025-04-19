@@ -16,6 +16,20 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         SpotifyManager.login(this)
         findViewById<Button>(R.id.nextSongButton).setOnClickListener {
+            val titleView = findViewById<TextView>(R.id.touhouInfo)
+            val spotifyView = findViewById<TextView>(R.id.touhouSpotifyLink)
+            val gameView = findViewById<TextView>(R.id.touhouGameTitle)
+            val characterSection = findViewById<View>(R.id.characterThemeSection)
+            val charImage = findViewById<ImageView>(R.id.characterImage)
+
+            UIUpdater.setOriginalSongTitles(titleView, "", "", "")
+            spotifyView.text = ""
+            gameView.text = ""
+            spotifyView.visibility = View.GONE
+            gameView.visibility = View.GONE
+            characterSection.visibility = View.GONE
+            charImage.setImageDrawable(null)
+
             val characterLayout = (this).findViewById<LinearLayout>(R.id.characterThemeSection)
             characterLayout.visibility = View.GONE
             SpotifyManager.skipToNextTrack(this)
