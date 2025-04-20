@@ -119,7 +119,6 @@ object TouhouDBManager {
         }
     }
 
-
     private fun buildAlbumNameVariants(original: String): List<String> {
         val base = original.trim()
         val variants = mutableSetOf(base)
@@ -152,8 +151,6 @@ object TouhouDBManager {
         val tokensB = b.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), " ").split(" ").filter { it.isNotBlank() }
         return tokensA.count { tokensB.contains(it) }
     }
-
-
 
     private fun buildTitleVariants(original: String): List<String> {
         val variants = mutableSetOf<String>()
@@ -203,6 +200,7 @@ object TouhouDBManager {
 
         return variants.filter { it.isNotBlank() }.distinct()
     }
+
     private fun buildFallbackQueries(original: String): List<String> {
         val variants = mutableListOf(original)
 
@@ -229,6 +227,7 @@ object TouhouDBManager {
 
         return variants.distinct()
     }
+
     private fun findOriginalIdByFallbackQueries(client: OkHttpClient, queries: List<String>): Pair<Int, String> {
         var originalId = -1
         var lastSearchUrl = ""
@@ -497,66 +496,9 @@ object TouhouDBManager {
 
                 ui.runOnUiThread {
                     // 🔗 Spotify link
-                    val spotifyView = ui.findViewById<TextView>(R.id.touhouSpotifyLink)
-                    spotifyView.text = HtmlCompat.fromHtml("<a href=\"$spotifyLink\">🔗 Search on Spotify</a>", HtmlCompat.FROM_HTML_MODE_COMPACT)
-                    spotifyView.movementMethod = LinkMovementMethod.getInstance()
-                    spotifyView.movementMethod = LinkMovementMethod.getInstance()
-                    spotifyView.visibility = View.VISIBLE
+                    val spotifyLink = "https://open.spotify.com/search/" + Uri.encode(jp)
+                    UIUpdater.showTouhouInfo(context, jp, romaji, en, gameTitle, spotifyLink, characterName, characterThumbUrl)
 
-                    // 🎮 Game title
-                    val gameView = ui.findViewById<TextView>(R.id.touhouGameTitle)
-                    if (gameTitle.isNotBlank()) {
-                        gameView.text = "🎮 From: $gameTitle"
-                        gameView.visibility = View.VISIBLE
-                    } else {
-                        gameView.visibility = View.GONE
-                    }
-                }
-
-
-// 🎭 Character name will come after this as usual
-
-
-                val characterLayout = ui.findViewById<LinearLayout>(R.id.characterThemeSection)
-                val charNameView = ui.findViewById<TextView>(R.id.characterNameText)
-                val charImageView = ui.findViewById<ImageView>(R.id.characterImage)
-
-                if (characterName.isNotBlank()) {
-                    ui.runOnUiThread {
-                        charNameView.text = ui.getString(R.string.character_theme_label, characterName)
-                        characterLayout.visibility = View.VISIBLE
-                    }
-
-                    if (characterThumbUrl.isNotBlank()) {
-                        Thread {
-                            try {
-                                val imgStream = URL(characterThumbUrl).openStream()
-                                val bmp = BitmapFactory.decodeStream(imgStream)
-                                ui.runOnUiThread {
-                                    charImageView.setImageBitmap(bmp)
-                                }
-                            } catch (e: Exception) {
-                                Log.e("CharacterImage", "Failed to load character thumbnail", e)
-                            }
-                        }.start()
-                    } else {
-                        ui.runOnUiThread {
-                            charImageView.setImageDrawable(null) // or placeholder
-                        }
-                    }
-                } else {
-                    ui.runOnUiThread {
-                        characterLayout.visibility = View.GONE
-                    }
-                }
-
-
-
-
-
-
-
-                ui.runOnUiThread {
                     touhouText.movementMethod = LinkMovementMethod.getInstance()
                 }
 
@@ -568,7 +510,6 @@ object TouhouDBManager {
             }
         }.start()
     }
-    // Replace `this@MainActivity` with `context`
 }
 
 

@@ -1,16 +1,85 @@
 package com.example.tohoinfo
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.text.HtmlCompat
+import java.net.URL
 
 object UIUpdater {
     private var currentTitleIndex = 0
     private var titleCycle: List<String> = emptyList()
+
+    fun showTouhouInfo(
+        context: Context,
+        jp: String,
+        romaji: String?,
+        en: String?,
+        gameTitle: String?,
+        spotifyLink: String,
+        characterName: String?,
+        characterThumbUrl: String?
+    ) {
+        val ui = context as MainActivity
+
+        ui.runOnUiThread {
+            val titleView = ui.findViewById<TextView>(R.id.touhouInfo)
+            val spotifyView = ui.findViewById<TextView>(R.id.touhouSpotifyLink)
+            val gameView = ui.findViewById<TextView>(R.id.touhouGameTitle)
+            val charText = ui.findViewById<TextView>(R.id.characterNameText)
+            val charImage = ui.findViewById<ImageView>(R.id.characterImage)
+            val charSection = ui.findViewById<LinearLayout>(R.id.characterThemeSection)
+
+            // 🎵 Title toggle
+            setOriginalSongTitles(titleView, jp, romaji, en)
+
+            // 🔗 Spotify
+            spotifyView.text = HtmlCompat.fromHtml(
+                "<a href=\"$spotifyLink\">🔗 Search on Spotify</a>",
+                HtmlCompat.FROM_HTML_MODE_COMPACT
+            )
+            spotifyView.movementMethod = LinkMovementMethod.getInstance()
+            spotifyView.visibility = View.VISIBLE
+
+            // 🎮 Game
+            if (!gameTitle.isNullOrBlank()) {
+                gameView.text = "🎮 From: $gameTitle"
+                gameView.visibility = View.VISIBLE
+            } else {
+                gameView.visibility = View.GONE
+            }
+
+            // 🎭 Character
+            if (!characterName.isNullOrBlank()) {
+                charText.text = ui.getString(R.string.character_theme_label, characterName)
+                charSection.visibility = View.VISIBLE
+            } else {
+                charSection.visibility = View.GONE
+                charImage.setImageDrawable(null)
+            }
+        }
+
+        // 🎭 Load image async
+        if (!characterThumbUrl.isNullOrBlank()) {
+            Thread {
+                try {
+                    val bmp = BitmapFactory.decodeStream(URL(characterThumbUrl).openStream())
+                    ui.runOnUiThread {
+                        val charImage = ui.findViewById<ImageView>(R.id.characterImage)
+                        charImage.setImageBitmap(bmp)
+                    }
+                } catch (e: Exception) {
+                    Log.e("CharacterImage", "Failed to load character thumbnail", e)
+                }
+            }.start()
+        }
+    }
 
     fun showNoArrangementFound(view: TextView) {
         titleCycle = listOf("❌ No matching Touhou arrangement found.")
@@ -20,7 +89,6 @@ object UIUpdater {
         view.setOnClickListener(null) // disable toggling
         view.visibility = View.VISIBLE
     }
-
 
     fun setOriginalSongTitles(view: TextView, jp: String?, romaji: String?, en: String?) {
         titleCycle = listOfNotNull(jp, romaji, en).distinct()
@@ -46,8 +114,6 @@ object UIUpdater {
         }
     }
 
-
-
     fun updateTrackText(context: Context, text: String) {
         (context as MainActivity).runOnUiThread {
             val trackInfo = context.findViewById<TextView>(R.id.trackInfo)
@@ -55,6 +121,7 @@ object UIUpdater {
             trackInfo.setShadowLayer(6f, 0f, 0f, Color.BLACK)
         }
     }
+
     fun hideCharacterSection(context: Context) {
         val ui = context as MainActivity
         ui.runOnUiThread {
@@ -67,7 +134,6 @@ object UIUpdater {
             layout.visibility = View.GONE   // hide it
         }
     }
-
 
     fun formatTildeTitle(text: String): String {
         return text.replace(Regex("""\s*[～~]\s*"""), " ～\n")
