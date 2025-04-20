@@ -57,6 +57,7 @@ android {
         debugImplementation(libs.androidx.ui.tooling)
         debugImplementation(libs.androidx.ui.test.manifest)
         implementation(libs.androidx.appcompat)
+        implementation ("com.squareup.picasso:picasso:2.8")
 
         implementation("com.spotify.android:auth:1.2.5") // Maven dependency
         implementation("com.squareup.okhttp3:okhttp:4.11.0")
