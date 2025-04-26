@@ -3,31 +3,30 @@ package com.example.tohoinfo
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
-import android.graphics.BitmapFactory
-import android.graphics.Typeface
 import android.net.Uri
-import android.text.SpannableString
-import android.text.SpannableStringBuilder
 import android.text.method.LinkMovementMethod
-import android.text.style.ForegroundColorSpan
-import android.text.style.RelativeSizeSpan
-import android.text.style.StyleSpan
-import android.text.style.URLSpan
 import android.util.Log
 import android.view.View
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
+import com.google.gson.Gson
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.net.URL
-import androidx.core.graphics.toColorInt
-import androidx.core.text.HtmlCompat
 
 object TouhouDBManager {
+
+    data class SongInfo(
+        val jp: String,
+        val romaji: String?,
+        val en: String?,
+        val gameTitle: String?,
+        val characterName: String?,
+        val characterThumbUrl: String?,
+        val genres: List<String>
+    )
 
     @SuppressLint("CutPasteId")
     private fun tryAlbumDisambiguation(albumName: String?, spotifyTitle: String, spotifyYear: Int?): Int {
@@ -57,7 +56,6 @@ object TouhouDBManager {
                     allAlbumItems.add(album)
                 }
             }
-
 
 
             if (allAlbumItems.isEmpty()) {
@@ -118,33 +116,179 @@ object TouhouDBManager {
             -1
         }
     }
+    private fun findArrangementViaAlbumDisambiguation(
+        albumName: String?,
+        spotifyTrackTitle: String,
+        spotifyYear: Int?,
+        primaryArtist: String,
+        allArtists: List<String>,
+        client: OkHttpClient
+    ): Pair<Int, Int> {
+        if (albumName.isNullOrBlank()) return -1 to -1
+
+        val variants = buildAlbumNameVariants(albumName)
+        val albumMatches = mutableListOf<Pair<JSONObject, Int>>()
+
+        for (variant in variants) {
+            val encoded = Uri.encode(variant)
+            val url = "https://touhoudb.com/api/albums?query=$encoded&start=0&maxResults=10&nameMatchMode=Auto&fields=Artists,Tracks"
+            Log.d("TouhouDB", "📡 Querying album variant: \"$variant\" → $url")
+
+            val resp = client.newCall(Request.Builder().url(url).build()).execute()
+            val body = resp.body?.string() ?: continue
+            val items = JSONObject(body).optJSONArray("items") ?: continue
+            Log.d("TouhouDB", "🎯 Found ${items.length()} album(s) for variant \"$variant\"")
+
+            for (i in 0 until items.length()) {
+                val album = items.getJSONObject(i)
+                val score = computeAlbumMatchScore(album, primaryArtist, allArtists, spotifyYear)
+                albumMatches.add(album to score)
+            }
+        }
+        Log.d("TouhouDB", "🧪 Evaluating albums for matching:")
+        for ((album, score) in albumMatches) {
+            val name = album.optString("name")
+            val artistList = album.optJSONArray("artists")?.let {
+                (0 until it.length()).joinToString(", ") { i ->
+                    it.getJSONObject(i).optJSONObject("artist")?.optString("name") ?: "?"
+                }
+            } ?: "N/A"
+            Log.d("TouhouDB", "   • Album: \"$name\" — Score: $score — Artists: $artistList")
+        }
+
+        val titleVariants = buildTitleVariants(spotifyTrackTitle)
+
+        for ((album, _) in albumMatches.sortedByDescending { it.second }) {
+            val tracks = album.optJSONArray("tracks") ?: continue
+            for (i in 0 until tracks.length()) {
+                val track = tracks.getJSONObject(i)
+                val name = track.optString("name")
+                if (titleVariants.any { variant ->
+                        name.equals(variant, ignoreCase = true) ||
+                                name.contains(variant, ignoreCase = true) ||
+                                variant.contains(name, ignoreCase = true)
+                    }) {
+                    val song = track.optJSONObject("song") ?: continue
+                    Log.d("TouhouDB", "✅ Matched track \"$name\" in album \"${album.optString("name")}\"")
+                    return song.optInt("id", -1) to song.optInt("originalVersionId", -1)
+                }
+            }
+        }
+
+        Log.d("TouhouDB", "❌ No matching track found in any top-ranked albums.")
+        return -1 to -1
+
+
+        return -1 to -1
+    }
+
+
+    private fun computeAlbumMatchScore(
+        album: JSONObject,
+        primaryArtist: String,
+        allArtists: List<String>,
+        spotifyYear: Int?
+    ): Int {
+        var score = 0
+        val artistArray = album.optJSONArray("artists") ?: return 0
+        val albumYear = album.optJSONObject("releaseDate")?.optInt("year")
+
+        for (i in 0 until artistArray.length()) {
+            val artistObj = artistArray.getJSONObject(i).optJSONObject("artist") ?: continue
+            val name = artistObj.optString("name")
+            val aliases = artistObj.optString("additionalNames")
+
+            if (name.equals(primaryArtist, ignoreCase = true) ||
+                aliases.contains(primaryArtist, ignoreCase = true)) {
+                score += 80
+            } else if (allArtists.any { it.equals(name, ignoreCase = true) || aliases.contains(it, ignoreCase = true) }) {
+                score += 40
+            }
+        }
+
+        if (spotifyYear != null && albumYear != null && spotifyYear == albumYear) {
+            score += 25
+        }
+
+        return score
+    }
+
+    private fun findArrangementByArtistQuery(
+        trackTitle: String,
+        primaryArtist: String,
+        client: OkHttpClient
+    ): Pair<Int, Int> {
+        try {
+            val encodedArtist = Uri.encode(primaryArtist)
+            val artistSearchUrl = "https://touhoudb.com/api/artists?query=$encodedArtist&nameMatchMode=Auto&maxResults=10"
+            Log.d("TouhouDB", "🔍 Looking up artist: \"$primaryArtist\" → $artistSearchUrl")
+
+            val artistResp = client.newCall(Request.Builder().url(artistSearchUrl).build()).execute()
+            val artistJson = JSONObject(artistResp.body?.string() ?: "")
+            val artistItems = artistJson.optJSONArray("items") ?: return -1 to -1
+
+            val artistId = artistItems.optJSONObject(0)?.optInt("id", -1) ?: -1
+            if (artistId == -1) return -1 to -1
+
+            val titleVariants = buildTitleVariants(trackTitle)
+            Log.d("TouhouDB", "🎵 Searching songs by artist ID $artistId with title variants: $titleVariants")
+
+            for (variant in titleVariants) {
+                val encodedQuery = Uri.encode(variant)
+                val songSearchUrl = "https://touhoudb.com/api/songs?query=$encodedQuery&artistId[]=$artistId&maxResults=10"
+                Log.d("TouhouDB", "🎯 Querying: $songSearchUrl")
+
+                val songResp = client.newCall(Request.Builder().url(songSearchUrl).build()).execute()
+                val songJson = JSONObject(songResp.body?.string() ?: "")
+                val songItems = songJson.optJSONArray("items") ?: continue
+
+                for (i in 0 until songItems.length()) {
+                    val song = songItems.getJSONObject(i)
+                    if (song.optString("songType") == "Arrangement") {
+                        val songName = song.optString("name")
+                        Log.d("TouhouDB", "✅ Matched arrangement: \"$songName\"")
+                        return song.optInt("id", -1) to song.optInt("originalVersionId", -1)
+                    }
+                }
+            }
+
+            Log.d("TouhouDB", "❌ No matching song found by artist.")
+        } catch (e: Exception) {
+            Log.e("TouhouDB", "🔥 Error in artist-based matching", e)
+        }
+
+        return -1 to -1
+    }
+
 
     private fun buildAlbumNameVariants(original: String): List<String> {
         val base = original.trim()
-        val variants = mutableSetOf(base)
+        val variants = mutableSetOf<String>()
 
-        // Remove dashes and suffixes like -KURENAI-, -Re, etc
-        val dashTrimmed = base.replace(Regex("[-ー−‐―].*?$"), "").trim()
-        variants.add(dashTrimmed)
+        // Add raw form
+        variants.add(base)
 
-        // Remove bracketed suffixes
-        val bracketTrimmed = base.replace("""[(（【\[].*?[)）】\]]""".toRegex(), "").trim()
-        variants.add(bracketTrimmed)
+        // Remove common suffixes like DISC02 CODE : XX
+        val suffixRegex = Regex("""[\s\-–—ー]*(DISC\s?\d{1,2}|CODE\s?:?.*|DISC[0-9]{2}.*)$""", RegexOption.IGNORE_CASE)
+        val suffixStripped = base.replace(suffixRegex, "").trim()
+        variants.add(suffixStripped)
 
-        // Generate smart alternates (e.g., add " Re", replace KURENAI with Re, etc.)
-        if (base.contains("KURENAI", ignoreCase = true)) {
-            variants.add(base.replace(Regex("KURENAI.*", RegexOption.IGNORE_CASE), "Re"))
-            variants.add(base.replace(Regex("[-ー−‐―]KURENAI.*", RegexOption.IGNORE_CASE), " Re"))
-            variants.add(base.replace("KURENAI", "Re", ignoreCase = true))
-        }
+        // Also remove bracketed expressions like 【特別版】 etc.
+        val bracketStripped = base.replace("""[(（【\[].*?[)）】\]]""".toRegex(), "").trim()
+        variants.add(bracketStripped)
 
-        if (dashTrimmed.isNotEmpty()) {
-            variants.add("$dashTrimmed Re")
-            variants.add("$dashTrimmed -Re")
-        }
+        // Combined: both suffix and brackets
+        val fullyClean = bracketStripped.replace(suffixRegex, "").trim()
+        variants.add(fullyClean)
+
+        // Also remove anything after colon (some titles use it stylistically)
+        val colonStripped = base.substringBefore(":").trim()
+        variants.add(colonStripped)
 
         return variants.filter { it.isNotBlank() }.distinct()
     }
+
+
 
     private fun nameSimilarity(a: String, b: String): Int {
         val tokensA = a.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), " ").split(" ").filter { it.isNotBlank() }
@@ -228,7 +372,8 @@ object TouhouDBManager {
         return variants.distinct()
     }
 
-    private fun findOriginalIdByFallbackQueries(client: OkHttpClient, queries: List<String>): Pair<Int, String> {
+    private fun findOriginalIdByFallbackQueries(client: OkHttpClient, queries: List<String>): Triple<Int, Int, String> {
+        var arrangementId = -1
         var originalId = -1
         var lastSearchUrl = ""
 
@@ -248,8 +393,8 @@ object TouhouDBManager {
                 val items = searchJson.getJSONArray("items")
                 for (i in 0 until items.length()) {
                     val song = items.getJSONObject(i)
-                    val type = song.optString("songType")
-                    if (type == "Arrangement") {
+                    if (song.optString("songType") == "Arrangement") {
+                        arrangementId = song.getInt("id")
                         originalId = song.optInt("originalVersionId", -1)
                         break
                     }
@@ -259,8 +404,9 @@ object TouhouDBManager {
             if (originalId != -1) break // Found a match, stop iterating
         }
 
-        return originalId to lastSearchUrl
+        return Triple(arrangementId, originalId, lastSearchUrl)
     }
+
 
     private fun sendNoResultWebhook(query: String, lastSearchUrl: String, client: OkHttpClient) {
         try {
@@ -287,6 +433,58 @@ object TouhouDBManager {
             Log.e("TouhouDB", "🚨 Failed to send webhook", ex)
         }
     }
+
+    private fun fetchSongInfo(arrangementId: Int, originalId: Int, client: OkHttpClient): SongInfo? {
+        // Get names + album + character from the original
+        val originalUrl = "https://touhoudb.com/api/songs/$originalId?fields=Names,Albums"
+        val originalJson = JSONObject(client.newCall(Request.Builder().url(originalUrl).build()).execute().body?.string() ?: return null)
+
+        val names = originalJson.getJSONArray("names")
+        var jp = ""
+        var romaji: String? = null
+        var en: String? = null
+        for (i in 0 until names.length()) {
+            val obj = names.getJSONObject(i)
+            val value = obj.getString("value")
+            when (obj.getString("language")) {
+                "Japanese" -> jp = value
+                "Romaji" -> romaji = value
+                "English" -> en = value
+            }
+        }
+
+        val gameTitle = parseGameTitleFromAlbums(originalJson, client)
+        val (characterName, characterThumbUrl) = parseCharacterThemeInfo(originalId, client)
+
+        // Get genres from the arrangement
+        val genreTags = mutableListOf<String>()
+        val arrangementUrl = "https://touhoudb.com/api/songs/$arrangementId?fields=Tags"
+        val arrangementJson = JSONObject(client.newCall(Request.Builder().url(arrangementUrl).build()).execute().body?.string() ?: "")
+        val tags = arrangementJson.optJSONArray("tags")
+
+        if (tags != null) {
+            for (i in 0 until tags.length()) {
+                val tagObj = tags.getJSONObject(i)
+                val tag = tagObj.optJSONObject("tag")
+                if (tag?.optString("categoryName") == "Genres") {
+                    val genreName = tag.optString("name").ifBlank { tag.optString("additionalNames") }
+                    if (genreName.isNotBlank()) genreTags.add(genreName)
+                }
+            }
+        }
+
+        return SongInfo(
+            jp = jp,
+            romaji = romaji,
+            en = en,
+            gameTitle = gameTitle,
+            characterName = characterName,
+            characterThumbUrl = characterThumbUrl,
+            genres = genreTags // <-- not genreTags
+        )
+    }
+
+
 
     private fun parseGameTitleFromAlbums(originalJson: JSONObject, client: OkHttpClient): String {
         if (!originalJson.has("albums")) return ""
@@ -329,7 +527,32 @@ object TouhouDBManager {
                 val albumUrl = "https://touhoudb.com/api/albums/$albumId?fields=Tags"
                 val tagResponse = client.newCall(Request.Builder().url(albumUrl).build()).execute()
                 val tagJson = JSONObject(tagResponse.body?.string() ?: "")
+                val genres = mutableListOf<String>()
                 val tags = tagJson.optJSONArray("tags")
+                if (tags != null) {
+                    Log.d("TouhouDB", "🔖 Tag count: ${tags.length()}")
+
+                    for (i in 0 until tags.length()) {
+                        val tagObj = tags.getJSONObject(i)
+                        val tag = tagObj.optJSONObject("tag")
+
+                        val cat = tag?.optString("categoryName")
+                        val name = tag?.optString("name")
+                        val alt = tag?.optString("additionalNames")
+
+                        Log.d("TouhouDB", "🔍 Tag #$i - Category: $cat, Name: $name, Additional: $alt")
+
+                        if (cat == "Genres") {
+                            val genreName = name?.ifBlank { alt }
+                            if (!genreName.isNullOrBlank()) {
+                                genres.add(genreName)
+                                Log.d("TouhouDB", "🎼 Genre added: $genreName")
+                            }
+                        }
+                    }
+                } else {
+                    Log.d("TouhouDB", "⚠️ No tags array found in song JSON.")
+                }
 
                 for (j in 0 until (tags?.length() ?: 0)) {
                     val tag = tags?.getJSONObject(j)?.optJSONObject("tag")
@@ -384,8 +607,13 @@ object TouhouDBManager {
         return characterName to characterThumbUrl
     }
 
-    fun scrape(context: Context, query: String, spotifyYear: Int? = null)
-    {
+    fun scrape(
+        context: Context,
+        query: String,
+        spotifyYear: Int? = null,
+        primarySpotifyArtist: String,
+        allSpotifyArtists: List<String>
+    ){
         val ui = (context as MainActivity)
         val spotifyYear = try {
             SpotifyManager.currentSpotifyAlbumName?.let { albumName ->
@@ -414,23 +642,28 @@ object TouhouDBManager {
                 val fallbackQueries = buildFallbackQueries(query)
 
 
-                val (originalIdInitial, lastSearchUrl) = findOriginalIdByFallbackQueries(client, fallbackQueries)
-                var originalId = originalIdInitial
+                val albumName = SpotifyManager.currentSpotifyAlbumName
+                var (arrangementId, originalId) = findArrangementByArtistQuery(query, primarySpotifyArtist, client)
 
-
-                if (originalId == -1) {
-                    Log.d("TouhouDB", "🔍 No match found in fallback queries. Attempting album disambiguation...")
-                    val albumName = SpotifyManager.currentSpotifyAlbumName
-                    Log.d("TouhouDB", "🎼 Album from Spotify: $albumName")
-
-                    val albumFallbackId = tryAlbumDisambiguation(albumName, query, spotifyYear)
-                    if (albumFallbackId != -1) {
-                        Log.d("TouhouDB", "✅ Match found via album disambiguation. Song ID: $albumFallbackId")
-                        originalId = albumFallbackId
-                    } else {
-                        Log.d("TouhouDB", "❌ Album disambiguation failed to find a matching track.")
-                    }
+                if (arrangementId == -1 || originalId == -1) {
+                    Log.d("TouhouDB", "❌ Artist-based match failed. Trying album disambiguation.")
+                    val result = findArrangementViaAlbumDisambiguation(
+                        albumName, query, spotifyYear, primarySpotifyArtist, allSpotifyArtists, client
+                    )
+                    arrangementId = result.first
+                    originalId = result.second
                 }
+
+
+                val lastSearchUrl = "https://touhoudb.com/api/albums?query=" + Uri.encode(albumName ?: "")
+
+                if (originalId == -1 || arrangementId == -1) {
+                    Log.d("TouhouDB", "❌ Album+artist disambiguation failed. Falling back to title-based search.")
+                    val fallbackResult = findOriginalIdByFallbackQueries(client, fallbackQueries)
+                    arrangementId = fallbackResult.first
+                    originalId = fallbackResult.second
+                }
+
 
 
                 if (originalId == -1) {
@@ -459,45 +692,50 @@ object TouhouDBManager {
                 }
 
                 // Fetch the original song
-                val originalUrl = "https://touhoudb.com/api/songs/$originalId?fields=Names,Albums"
-                val originalResponse = client.newCall(Request.Builder().url(originalUrl).build()).execute()
-                val originalJson = JSONObject(originalResponse.body?.string() ?: "")
+                val songInfo = fetchSongInfo(arrangementId, originalId, client) ?: return@Thread
+                Log.d("TouhouDB", "✅ Using arrangement ID: $arrangementId")
+                Log.d("TouhouDB", "✅ Using original song ID: $originalId")
+                Log.d("TouhouDB", "🎯 Displayed title: ${songInfo.jp}")
+                Log.d("TouhouDB", "🎼 Genres: ${songInfo.genres.joinToString(", ")}")
+                // ✅ DEBUG: Fetch and log artists from final arrangement
+                try {
+                    val artistUrl = "https://touhoudb.com/api/songs/$arrangementId?fields=Artists"
+                    val artistResp = client.newCall(Request.Builder().url(artistUrl).build()).execute()
+                    val artistJson = JSONObject(artistResp.body?.string() ?: "")
+                    val artistArray = artistJson.optJSONArray("artists")
 
-                val names = originalJson.getJSONArray("names")
-                var jp = ""
-                var romaji = ""
-                var en = ""
-// Extract game title from Albums
-                val gameTitle = parseGameTitleFromAlbums(originalJson, client)
+                    Log.d("TouhouDB", "🎤 Artists for arrangement ID $arrangementId:")
+                    for (i in 0 until (artistArray?.length() ?: 0)) {
+                        val artistEntry = artistArray?.getJSONObject(i)
+                        val name = artistEntry?.optString("name")
+                        val roles = artistEntry?.optString("roles")
+                        val category = artistEntry?.optString("categories")
+                        val artistType = artistEntry?.optJSONObject("artist")?.optString("artistType")
+                        val altNames = artistEntry?.optJSONObject("artist")?.optString("additionalNames")
 
-// Check if the original song is a character theme
-                val (characterName, characterThumbUrl) = parseCharacterThemeInfo(originalId, client)
-
-                val touhouTextView = ui.findViewById<TextView>(R.id.touhouInfo)
-
-                for (i in 0 until names.length()) {
-                    val obj = names.getJSONObject(i)
-                    val rawValue = obj.getString("value")
-
-                    when (obj.getString("language")) {
-                        "Japanese" -> jp = rawValue
-                        "Romaji" -> romaji = rawValue
-                        "English" -> en = rawValue
+                        Log.d("TouhouDB", "   • $name [$roles] ($category, $artistType) aka: $altNames")
                     }
+                } catch (e: Exception) {
+                    Log.e("TouhouDB", "❌ Failed to fetch artist info for arrangement", e)
                 }
 
 
-
-
-                val spotifyLink = "https://open.spotify.com/search/" + Uri.encode(jp)
-                (context as Activity).runOnUiThread {
-                    UIUpdater.setOriginalSongTitles(touhouTextView, jp, romaji, en)
-                }
+                val spotifyLink = "https://open.spotify.com/search/" + Uri.encode(songInfo.jp)
 
                 ui.runOnUiThread {
                     // 🔗 Spotify link
-                    val spotifyLink = "https://open.spotify.com/search/" + Uri.encode(jp)
-                    UIUpdater.showTouhouInfo(context, jp, romaji, en, gameTitle, spotifyLink, characterName, characterThumbUrl)
+                    Log.d("TouhouDB", "🧾 SongInfo contents: ${Gson().toJson(songInfo)}")
+                    UIUpdater.showTouhouInfo(
+                        context,
+                        songInfo.jp,
+                        songInfo.romaji,
+                        songInfo.en,
+                        songInfo.gameTitle,
+                        spotifyLink,
+                        songInfo.characterName,
+                        songInfo.characterThumbUrl,
+                        songInfo.genres
+                    )
 
                     touhouText.movementMethod = LinkMovementMethod.getInstance()
                 }

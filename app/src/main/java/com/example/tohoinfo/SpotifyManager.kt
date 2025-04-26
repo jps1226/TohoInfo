@@ -101,6 +101,8 @@ object SpotifyManager {
                     for (i in 0 until artistArray.length()) {
                         artistNames.add(artistArray.getJSONObject(i).getString("name"))
                     }
+                    val primarySpotifyArtist = artistNames.firstOrNull()?.trim() ?: ""
+
 
                     val isOriginalZUN = artistNames.any { it == "ZUN" || it.contains("上海アリス幻樂団") }
 
@@ -134,11 +136,11 @@ object SpotifyManager {
 
                     if (isOriginalZUN) {
                         UIUpdater.hideCharacterSection(activity)
-                        TouhouDBManager.scrape(activity, name, currentSpotifyAlbumYear)
+                        TouhouDBManager.scrape(activity, name, currentSpotifyAlbumYear, primarySpotifyArtist, artistNames)
 
                     } else {
                         UIUpdater.hideCharacterSection(activity)
-                        TouhouDBManager.scrape(activity, name, currentSpotifyAlbumYear)
+                        TouhouDBManager.scrape(activity, name, currentSpotifyAlbumYear, primarySpotifyArtist, artistNames)
                     }
                 }
             } catch (e: Exception) {

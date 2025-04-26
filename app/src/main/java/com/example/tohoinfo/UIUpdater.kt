@@ -24,7 +24,8 @@ object UIUpdater {
         gameTitle: String?,
         spotifyLink: String,
         characterName: String?,
-        characterThumbUrl: String?
+        characterThumbUrl: String?,
+        genres: List<String>
     ) {
         val ui = context as MainActivity
 
@@ -36,6 +37,7 @@ object UIUpdater {
             val charImage = ui.findViewById<ImageView>(R.id.characterImage)
             val charSection = ui.findViewById<LinearLayout>(R.id.characterThemeSection)
 
+
             // 🎵 Title toggle
             setOriginalSongTitles(titleView, jp, romaji, en)
 
@@ -46,6 +48,14 @@ object UIUpdater {
             )
             spotifyView.movementMethod = LinkMovementMethod.getInstance()
             spotifyView.visibility = View.VISIBLE
+// 🎼 Genres
+            val genreView = ui.findViewById<TextView>(R.id.touhouGenres)
+            if (genres.isNotEmpty()) {
+                genreView.text = "🎼 Genre: ${genres.joinToString(", ")}"
+                genreView.visibility = View.VISIBLE
+            } else {
+                genreView.visibility = View.GONE
+            }
 
             // 🎮 Game
             if (!gameTitle.isNullOrBlank()) {
@@ -93,9 +103,6 @@ object UIUpdater {
     fun setOriginalSongTitles(view: TextView, jp: String?, romaji: String?, en: String?) {
         titleCycle = listOfNotNull(jp, romaji, en).distinct()
         currentTitleIndex = 0
-
-        Log.d("UIUpdater", "📛 Title cycle size: ${titleCycle.size}")
-        Log.d("UIUpdater", "📛 Title values: $titleCycle")
 
         // Post the update to ensure the view is laid out
         view.post {
