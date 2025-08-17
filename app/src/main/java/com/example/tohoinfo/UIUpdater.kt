@@ -1,8 +1,10 @@
 package com.example.tohoinfo
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.net.Uri
 import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.view.View
@@ -41,13 +43,26 @@ object UIUpdater {
             // 🎵 Title toggle
             setOriginalSongTitles(titleView, jp, romaji, en)
 
-            // 🔗 Spotify
-            spotifyView.text = HtmlCompat.fromHtml(
-                "<a href=\"$spotifyLink\">🔗 Search on Spotify</a>",
-                HtmlCompat.FROM_HTML_MODE_COMPACT
-            )
-            spotifyView.movementMethod = LinkMovementMethod.getInstance()
+            // 🔗 Spotify (use hardcoded link if available)
+            val zunInfo = ZunSpotifyLinks.originalSongLinks[jp]
+            val finalSpotifyLink = zunInfo?.spotifyUrl ?: spotifyLink
+
+            spotifyView.text = "🔗 Listen on Spotify"
+            spotifyView.setOnClickListener {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(finalSpotifyLink))
+                    intent.putExtra(Intent.EXTRA_REFERRER, Uri.parse("android-app://" + context.packageName))
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e("UIUpdater", "Failed to open Spotify link", e)
+                }
+            }
+
+
             spotifyView.visibility = View.VISIBLE
+
+
 // 🎼 Genres
             val genreView = ui.findViewById<TextView>(R.id.touhouGenres)
             if (genres.isNotEmpty()) {

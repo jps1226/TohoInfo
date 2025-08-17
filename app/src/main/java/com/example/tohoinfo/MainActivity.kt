@@ -15,6 +15,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         SpotifyManager.login(this)
+        UpdateManager.checkForUpdates(this)
         findViewById<Button>(R.id.nextSongButton).setOnClickListener {
             val titleView = findViewById<TextView>(R.id.touhouInfo)
             val spotifyView = findViewById<TextView>(R.id.touhouSpotifyLink)
